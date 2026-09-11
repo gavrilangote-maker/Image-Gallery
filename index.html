@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modern Photo & Wallpaper Gallery</title>
+  
+  <!-- External CSS -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Header & Modern Heading -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo-icon"><i class="fa-solid fa-camera-retro"></i></div>
+      <span class="logo-text">VISUALS</span>
+    </div>
+    
+    <div class="hero-text">
+      <h1 class="gradient-heading">Discover & Capture Beauty</h1>
+      <p>Explore high-resolution wallpapers across traditional, natural, and modern aesthetics.</p>
+    </div>
+  </header>
+
+  <!-- Category Filters -->
+  <nav class="filters">
+    <button class="filter-btn active" onclick="filterGallery('all', this)">
+      <i class="fa-solid fa-border-all"></i> All Collection
+    </button>
+    <button class="filter-btn" onclick="filterGallery('nature', this)">
+      <i class="fa-solid fa-tree"></i> Nature
+    </button>
+    <button class="filter-btn" onclick="filterGallery('traditional', this)">
+      <i class="fa-solid fa-archway"></i> Traditional
+    </button>
+    <button class="filter-btn" onclick="filterGallery('modern', this)">
+      <i class="fa-solid fa-city"></i> Modern
+    </button>
+  </nav>
+
+  <!-- Gallery Grid -->
+  <main class="gallery-grid" id="galleryGrid"></main>
+
+  <!-- Lightbox Modal -->
+  <div class="lightbox" id="lightbox">
+    <button class="close-btn" onclick="closeLightbox()">&times;</button>
+    
+    <button class="nav-btn prev-btn" onclick="changeImage(-1)">
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+
+    <div class="lightbox-content">
+      <img id="lbImage" src="" alt="Expanded View">
+      <div class="lightbox-meta">
+        <div class="meta-info">
+          <h3 id="lbTitle">Image Title</h3>
+          <span id="lbCategory" class="badge">Category</span>
+        </div>
+        <div class="lb-actions">
+          <button class="like-btn" id="lbLikeBtn" onclick="toggleLikeActive(event)">
+            <i class="fa-regular fa-heart"></i> <span id="lbLikeCount">0</span>
+          </button>
+          <a id="lbDownloadBtn" class="download-btn" href="" download target="_blank">
+            <i class="fa-solid fa-download"></i> Download
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <button class="nav-btn next-btn" onclick="changeImage(1)">
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  </div>
+
+  <script>
+    // Local image dataset with Unsplash fallback images
+    const images = [
+      { id: '1', category: 'nature', title: 'Alpine Mountain Lake', likes: 142, src: 'images/nature1.jpg', fallback: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80' },
+      { id: '2', category: 'traditional', title: 'Royal Heritage Courtyard', likes: 89, src: 'images/traditional1.jpg', fallback: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?auto=format&fit=crop&w=800&q=80' },
+      { id: '3', category: 'modern', title: 'Glass Skyscraper', likes: 210, src: 'images/modern1.jpg', fallback: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80' },
+      { id: '4', category: 'nature', title: 'Misty Redwood Forest', likes: 175, src: 'images/nature2.jpg', fallback: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80' },
+      { id: '5', category: 'traditional', title: 'Golden Hour Shrine', likes: 96, src: 'images/traditional2.jpg', fallback: 'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?auto=format&fit=crop&w=800&q=80' },
+      { id: '6', category: 'modern', title: 'Neon Cyberpunk Street', likes: 320, src: 'images/modern2.jpg', fallback: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80' }
+    ];
+
+    // LocalStorage for Liked Status
+    let userLikes = new Set(JSON.parse(localStorage.getItem('user_likes') || '[]'));
+    let currentList = [...images];
+    let activeIdx = 0;
+    let activeCat = 'all';
+
+    const galleryGrid = document.getElementById('galleryGrid');
+    const lightbox = document.getElementById('lightbox');
+    const lbImage = document.getElementById('lbImage');
+    const lbTitle = document.getElementById('lbTitle');
+    const lbCategory = document.getElementById('lbCategory');
+    const lbLikeCount = document.getElementById('lbLikeCount');
+    const lbLikeBtn = document.getElementById('lbLikeBtn');
+    const lbDownloadBtn = document.getElementById('lbDownloadBtn');
+
+    // Render Gallery Cards
+    function renderGallery(items) {
+      galleryGrid.innerHTML = items.map((item, index) => {
+        const isLiked = userLikes.has(item.id);
+        const displayLikes = item.likes + (isLiked ? 1 : 0);
+
+        return `
+          <div class="card" onclick="openLightbox(${index})">
+            <img src="${item.src}" alt="${item.title}" onerror="this.onerror=null;this.src='${item.fallback}';" loading="lazy">
+            <div class="card-overlay">
+              <div class="card-top">
+                <span class="badge">${item.category}</span>
+                <button class="action-btn like-icon ${isLiked ? 'liked' : ''}" onclick="toggleLike('${item.id}', event)">
+                  <i class="${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                  <span>${displayLikes}</span>
+                </button>
+              </div>
+              <div class="card-bottom">
+                <h4>${item.title}</h4>
+                <button class="action-btn download-icon" onclick="downloadImage('${item.src}', '${item.fallback}', '${item.title}', event)">
+                  <i class="fa-solid fa-download"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Category Filter Function
+    function filterGallery(category, btn) {
+      activeCat = category;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+
+      currentList = category === 'all' 
+        ? images 
+        : images.filter(item => item.category === category);
+        
+      renderGallery(currentList);
+    }
+
+    // Like Button Functionality
+    function toggleLike(id, event) {
+      if (event) event.stopPropagation();
+      if (userLikes.has(id)) {
+        userLikes.delete(id);
+      } else {
+        userLikes.add(id);
+      }
+      localStorage.setItem('user_likes', JSON.stringify([...userLikes]));
+      renderGallery(currentList);
+      
+      if (lightbox.classList.contains('active')) {
+        updateLightboxMeta();
+      }
+    }
+
+    function toggleLikeActive(event) {
+      const item = currentList[activeIdx];
+      if (item) toggleLike(item.id, event);
+    }
+
+    // Lightbox Controls
+    function openLightbox(index) {
+      activeIdx = index;
+      const item = currentList[activeIdx];
+
+      lbImage.onerror = () => { lbImage.src = item.fallback; };
+      lbImage.src = item.src;
+      lbTitle.textContent = item.title;
+      lbCategory.textContent = item.category;
+      lbDownloadBtn.href = item.src;
+
+      updateLightboxMeta();
+
+      lightbox.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function updateLightboxMeta() {
+      const item = currentList[activeIdx];
+      const isLiked = userLikes.has(item.id);
+      lbLikeCount.textContent = item.likes + (isLiked ? 1 : 0);
+      
+      if (isLiked) {
+        lbLikeBtn.classList.add('liked');
+        lbLikeBtn.querySelector('i').className = 'fa-solid fa-heart';
+      } else {
+        lbLikeBtn.classList.remove('liked');
+        lbLikeBtn.querySelector('i').className = 'fa-regular fa-heart';
+      }
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove('active');
+      document.body.style.overflow = 'auto';
+    }
+
+    function changeImage(step) {
+      activeIdx = (activeIdx + step + currentList.length) % currentList.length;
+      openLightbox(activeIdx);
+    }
+
+    // Download Handler
+    function downloadImage(src, fallback, title, event) {
+      if (event) event.stopPropagation();
+      const link = document.createElement('a');
+      link.href = src;
+      link.download = `${title.toLowerCase().replace(/\s+/g, '-')}.jpg`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (!lightbox.classList.contains('active')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') changeImage(-1);
+      if (e.key === 'ArrowRight') changeImage(1);
+    });
+
+    // Initial Load
+    renderGallery(images);
+  </script>
+</body>
+</html>
